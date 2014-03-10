@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os/exec"
 	"io"
+	"runtime"
 )
 
 const (
-	GIT = "/usr/bin/git"
+	GIT_LINUX = "/usr/bin/git"
+	GIT_WINDOWS = "C:\\Program Files (x86)\\Git\\bin\\git.exe"
 )
 
 type Repo struct {
@@ -49,6 +51,12 @@ func Parse(url string) RepoList {
 }
 
 func (m *Repo) pull(path string) {
+	var GIT string
+	if runtime.GOOS=="windows"{
+   		GIT = GIT_WINDOWS
+	} else {
+		GIT = GIT_LINUX
+	}
 	cmd := exec.Command(GIT, "pull", "-v", "--progress", "origin", m.Branch)
 	cmd.Dir = path
 	stdout, err := cmd.StdoutPipe()
@@ -69,7 +77,16 @@ func (m *Repo) pull(path string) {
 }
 
 func (m *Repo) clone(path string) {
-	cmd := exec.Command(GIT, "clone", "-v", "--progress", m.Remote, path)
+	var GIT, remote string
+	if runtime.GOOS=="windows"{
+   		GIT = GIT_WINDOWS
+   		remote = "/" + m.Remote 
+	} else {
+		GIT = GIT_LINUX
+		remote = m.Remote
+	}
+	fmt.Println(path)
+	cmd := exec.Command(GIT, "clone", "-v", "--progress", remote, path)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Println(err)
