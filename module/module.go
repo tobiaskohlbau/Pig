@@ -50,6 +50,32 @@ func Parse(url string) RepoList {
 	return repoList
 }
 
+func (m *Repo) fetch(path string) {
+	var GIT string
+	if runtime.GOOS=="windows"{
+   		GIT = GIT_WINDOWS
+	} else {
+		GIT = GIT_LINUX
+	}
+	cmd := exec.Command(GIT, "fetch", "--progress", "origin")
+	cmd.Dir = path
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Println(err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = cmd.Start()
+	if err != nil {
+		fmt.Println(err)
+	}
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+	cmd.Wait()	
+}
+
 func (m *Repo) pull(path string) {
 	var GIT string
 	if runtime.GOOS=="windows"{
@@ -57,7 +83,7 @@ func (m *Repo) pull(path string) {
 	} else {
 		GIT = GIT_LINUX
 	}
-	cmd := exec.Command(GIT, "pull", "-v", "--progress", "origin", m.Branch)
+	cmd := exec.Command(GIT, "pull", "--progress", "origin", m.Branch)
 	cmd.Dir = path
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -85,8 +111,33 @@ func (m *Repo) clone(path string) {
 		GIT = GIT_LINUX
 		remote = m.Remote
 	}
-	fmt.Println(path)
-	cmd := exec.Command(GIT, "clone", "-v", "--progress", remote, path)
+	cmd := exec.Command(GIT, "clone", "--progress", remote, path)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Println(err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = cmd.Start()
+	if err != nil {
+		fmt.Println(err)
+	}
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+	cmd.Wait()
+}
+
+func (m *Repo) checkout(path string) {
+	var GIT string
+	if runtime.GOOS=="windows"{
+   		GIT = GIT_WINDOWS 
+	} else {
+		GIT = GIT_LINUX
+	}
+	cmd := exec.Command(GIT, "checkout", m.Branch)
+	cmd.Dir = path
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Println(err)
@@ -116,8 +167,14 @@ func (m *Repo) Sync(folder string, tasks chan int) {
 			m.clone(pwd + "/" + folder + "/" + m.Path)
 		}
 	} else {
+		fmt.Printf("Repository %s exist fetch data right now\n", m.Name)
+		m.fetch(pwd + "/" + folder + "/" + m.Path)
 		fmt.Printf("Repository %s exist sync it right now\n", m.Name)
 		m.pull(pwd + "/" + folder + "/" + m.Path)
 	}
+
+	fmt.Printf("Repository %s exist checkout %s branch now\n", m.Name, m.Branch)
+	m.checkout(pwd + "/" + folder + "/" + m.Path)
+
 	tasks<-1
 }
